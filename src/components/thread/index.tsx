@@ -123,42 +123,18 @@ const fetchContentFromUrl = async (url: string): Promise<string> => {
     let result = `제목: ${title}\n\n`;
     
     if (sections.length > 0) {
-      // 처음 2개의 섹션 추가
-      const firstSections = sections.slice(0, 2);
-      firstSections.forEach((section, index) => {
+      sections.forEach((section, index) => {
         if (section.heading) {
-          result += `첫 번째 파트 - 섹션 ${index + 1} 제목: ${section.heading}\n`;
+          result += `섹션 ${index + 1} 제목: ${section.heading}\n`;
         }
         if (section.content) {
-          result += `첫 번째 파트 - 섹션 ${index + 1} 내용: ${section.content}\n\n`;
+          result += `섹션 ${index + 1} 내용: ${section.content}\n\n`;
         }
       });
-
-      // 섹션이 4개 이상인 경우 마지막 2개의 섹션도 추가
-      if (sections.length > 2) {
-        result += `...(중략)...\n\n`;
-        
-        const lastSections = sections.slice(-2);
-        lastSections.forEach((section, index) => {
-          if (section.heading) {
-            result += `마지막 파트 - 섹션 ${index + 1} 제목: ${section.heading}\n`;
-          }
-          if (section.content) {
-            result += `마지막 파트 - 섹션 ${index + 1} 내용: ${section.content}\n\n`;
-          }
-        });
-      }
     } else {
       // section이 없는 경우 전체 content에서 추출
       const mainContent = doc.body.textContent || '';
-      // 내용이 너무 길면 앞뒤 1000자만 표시
-      if (mainContent.length > 2000) {
-        const firstPart = mainContent.slice(0, 1000);
-        const lastPart = mainContent.slice(-1000);
-        result += `내용 앞부분:\n${firstPart}\n\n...(중략)...\n\n내용 뒷부분:\n${lastPart}`;
-      } else {
-        result += `내용: ${mainContent}`;
-      }
+      result += `내용:\n${mainContent}`;
     }
     
     return result;
@@ -250,7 +226,11 @@ export function Thread() {
         const urlMessage: Message = {
           id: uuidv4(),
           type: 'human',
-          content: `URL (${url}) 내용:\n${urlContent}`,
+          content: JSON.stringify({
+            type: 'url_content',
+            url: url,
+            content: urlContent
+          })
         };
 
         // 두 메시지를 모두 포함하여 전송

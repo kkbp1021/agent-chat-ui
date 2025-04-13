@@ -42,10 +42,24 @@ export function HumanMessage({
   const thread = useStreamContext();
   const meta = thread.getMessagesMetadata(message);
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
+  const [isUrlContentVisible, setIsUrlContentVisible] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState("");
   const contentString = getContentString(message.content);
+
+  // URL 내용이 있는지 확인
+  let urlData = null;
+  try {
+    if (typeof contentString === 'string') {
+      const parsed = JSON.parse(contentString);
+      if (parsed && parsed.type === 'url_content') {
+        urlData = parsed;
+      }
+    }
+  } catch (e) {
+    // JSON 파싱 실패 시 일반 텍스트로 처리
+  }
 
   const handleSubmitEdit = () => {
     setIsEditing(false);
@@ -84,9 +98,30 @@ export function HumanMessage({
             onSubmit={handleSubmitEdit}
           />
         ) : (
-          <p className="px-4 py-2 rounded-3xl bg-muted w-fit ml-auto whitespace-pre-wrap">
-            {contentString}
-          </p>
+          <div className="flex flex-col items-end">
+            {urlData ? (
+              <div className="px-4 py-2 rounded-3xl bg-muted w-fit ml-auto">
+                <div className="flex flex-col">
+                  <div>URL ({urlData.url})</div>
+                  <button
+                    onClick={() => setIsUrlContentVisible(!isUrlContentVisible)}
+                    className="text-blue-500 hover:text-blue-700 text-sm text-left mt-1"
+                  >
+                    {isUrlContentVisible ? '내용 숨기기' : '내용 보기'}
+                  </button>
+                  {isUrlContentVisible && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm max-w-xl whitespace-pre-wrap text-left">
+                      {urlData.content}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="px-4 py-2 rounded-3xl bg-muted w-fit ml-auto whitespace-pre-wrap">
+                {contentString}
+              </p>
+            )}
+          </div>
         )}
 
         <div
