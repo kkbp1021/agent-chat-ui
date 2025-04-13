@@ -67,6 +67,7 @@ export function ToolCalls({
 
 export function ToolResult({ message }: { message: ToolMessage }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [url, setUrl] = useState("");
 
   let parsedContent: any;
   let isJsonContent = false;
@@ -179,6 +180,21 @@ export function ToolResult({ message }: { message: ToolMessage }) {
           >
             {isExpanded ? <ChevronUp /> : <ChevronDown />}
           </motion.button>
+        )}
+        {isExpanded && (
+          <div className="p-3">
+            <label htmlFor="urlInput" className="block text-sm font-medium text-gray-700">
+              URL 입력:
+            </label>
+            <input
+              type="text"
+              id="urlInput"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="URL을 입력하세요"
+            />
+          </div>
         )}
       </motion.div>
     </div>

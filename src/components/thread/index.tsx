@@ -20,6 +20,8 @@ import {
   PanelRightOpen,
   PanelRightClose,
   SquarePen,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -95,6 +97,20 @@ function OpenGitHubRepo() {
   );
 }
 
+const fetchContentFromUrl = async (url: string): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch content');
+    }
+    const text = await response.text();
+    return text;
+  } catch (error) {
+    console.error('Error fetching content:', error);
+    return '';
+  }
+};
+
 export function Thread() {
   const [threadId, setThreadId] = useQueryState("threadId");
   const [chatHistoryOpen, setChatHistoryOpen] = useQueryState(
@@ -157,22 +173,27 @@ export function Thread() {
     prevMessageLength.current = messages.length;
   }, [messages]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     setFirstTokenReceived(false);
 
+    let content = '';
+    if (url) {
+      content = await fetchContentFromUrl(url);
+    }
+
     const newHumanMessage: Message = {
       id: uuidv4(),
-      type: "human",
-      content: input,
+      type: 'human',
+      content: input + (content ? `\n\nContent from URL:\n${content}` : ''),
     };
 
     const toolMessages = ensureToolCallsHaveResponses(stream.messages);
     stream.submit(
       { messages: [...toolMessages, newHumanMessage] },
       {
-        streamMode: ["values"],
+        streamMode: ['values'],
         optimisticValues: (prev) => ({
           ...prev,
           messages: [
@@ -184,7 +205,8 @@ export function Thread() {
       },
     );
 
-    setInput("");
+    setInput('');
+    setUrl('');
   };
 
   const handleRegenerate = (
@@ -203,6 +225,9 @@ export function Thread() {
   const hasNoAIOrToolMessages = !messages.find(
     (m) => m.type === "ai" || m.type === "tool",
   );
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [url, setUrl] = useState("");
 
   return (
     <div className="flex w-full h-screen overflow-hidden">
@@ -435,6 +460,33 @@ export function Thread() {
                         >
                           Send
                         </Button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center mt-4">
+                      <motion.button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="w-full py-2 flex items-center justify-center border-t-[1px] border-gray-200 text-gray-500 hover:text-gray-600 hover:bg-gray-50 transition-all ease-in-out duration-200 cursor-pointer"
+                        initial={{ scale: 1 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                      </motion.button>
+                      {isExpanded && (
+                        <div className="p-3 w-full">
+                          <label htmlFor="urlInput" className="block text-sm font-medium text-gray-700">
+                            URL 입력:
+                          </label>
+                          <input
+                            type="text"
+                            id="urlInput"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            placeholder="URL을 입력하세요"
+                          />
+                        </div>
                       )}
                     </div>
                   </form>
