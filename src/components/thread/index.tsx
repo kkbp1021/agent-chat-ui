@@ -104,7 +104,64 @@ const fetchContentFromUrl = async (url: string): Promise<string> => {
       throw new Error('Failed to fetch content');
     }
     const text = await response.text();
-    return text;
+    
+    // HTML 파싱을 위한 임시 element 생성
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    
+    // title 추출
+    const title = doc.querySelector('title')?.textContent || '';
+    
+    // section 요소들 추출
+    const sections = Array.from(doc.querySelectorAll('section')).map(section => {
+      const heading = section.querySelector('h1, h2, h3, h4, h5, h6')?.textContent || '';
+      const content = section.textContent || '';
+      return { heading, content };
+    });
+
+    // 결과 포맷팅
+    let result = `제목: ${title}\n\n`;
+    
+    if (sections.length > 0) {
+      // 처음 2개의 섹션 추가
+      const firstSections = sections.slice(0, 2);
+      firstSections.forEach((section, index) => {
+        if (section.heading) {
+          result += `첫 번째 파트 - 섹션 ${index + 1} 제목: ${section.heading}\n`;
+        }
+        if (section.content) {
+          result += `첫 번째 파트 - 섹션 ${index + 1} 내용: ${section.content}\n\n`;
+        }
+      });
+
+      // 섹션이 4개 이상인 경우 마지막 2개의 섹션도 추가
+      if (sections.length > 2) {
+        result += `...(중략)...\n\n`;
+        
+        const lastSections = sections.slice(-2);
+        lastSections.forEach((section, index) => {
+          if (section.heading) {
+            result += `마지막 파트 - 섹션 ${index + 1} 제목: ${section.heading}\n`;
+          }
+          if (section.content) {
+            result += `마지막 파트 - 섹션 ${index + 1} 내용: ${section.content}\n\n`;
+          }
+        });
+      }
+    } else {
+      // section이 없는 경우 전체 content에서 추출
+      const mainContent = doc.body.textContent || '';
+      // 내용이 너무 길면 앞뒤 1000자만 표시
+      if (mainContent.length > 2000) {
+        const firstPart = mainContent.slice(0, 1000);
+        const lastPart = mainContent.slice(-1000);
+        result += `내용 앞부분:\n${firstPart}\n\n...(중략)...\n\n내용 뒷부분:\n${lastPart}`;
+      } else {
+        result += `내용: ${mainContent}`;
+      }
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error fetching content:', error);
     return '';
@@ -178,32 +235,66 @@ export function Thread() {
     if (!input.trim() || isLoading) return;
     setFirstTokenReceived(false);
 
-    let content = '';
-    if (url) {
-      content = await fetchContentFromUrl(url);
-    }
-
-    const newHumanMessage: Message = {
+    // 먼저 사용자의 메시지를 전송
+    const userMessage: Message = {
       id: uuidv4(),
       type: 'human',
-      content: input + (content ? `\n\nContent from URL:\n${content}` : ''),
+      content: input,
     };
 
-    const toolMessages = ensureToolCallsHaveResponses(stream.messages);
-    stream.submit(
-      { messages: [...toolMessages, newHumanMessage] },
-      {
-        streamMode: ['values'],
-        optimisticValues: (prev) => ({
-          ...prev,
-          messages: [
-            ...(prev.messages ?? []),
-            ...toolMessages,
-            newHumanMessage,
-          ],
-        }),
-      },
-    );
+    // URL 내용이 있다면 별도의 메시지로 추가
+    let urlContent = '';
+    if (url) {
+      urlContent = await fetchContentFromUrl(url);
+      if (urlContent) {
+        const urlMessage: Message = {
+          id: uuidv4(),
+          type: 'human',
+          content: `URL (${url}) 내용:\n${urlContent}`,
+        };
+
+        // 두 메시지를 모두 포함하여 전송
+        const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+        stream.submit(
+          { 
+            messages: [
+              ...toolMessages,
+              userMessage,
+              urlMessage
+            ] 
+          },
+          {
+            streamMode: ['values'],
+            optimisticValues: (prev) => ({
+              ...prev,
+              messages: [
+                ...(prev.messages ?? []),
+                ...toolMessages,
+                userMessage,
+                urlMessage
+              ],
+            }),
+          },
+        );
+      }
+    } else {
+      // URL이 없는 경우 사용자 메시지만 전송
+      const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+      stream.submit(
+        { messages: [...toolMessages, userMessage] },
+        {
+          streamMode: ['values'],
+          optimisticValues: (prev) => ({
+            ...prev,
+            messages: [
+              ...(prev.messages ?? []),
+              ...toolMessages,
+              userMessage,
+            ],
+          }),
+        },
+      );
+    }
 
     setInput('');
     setUrl('');
@@ -482,7 +573,14 @@ export function Thread() {
                             type="text"
                             id="urlInput"
                             value={url}
-                            onChange={(e) => setUrl(e.target.value)}
+                            onChange={(e) => {
+                              let newUrl = e.target.value;
+                              // URL이 http:// 또는 https://로 시작하지 않으면 https://를 추가
+                              if (newUrl && !newUrl.match(/^https?:\/\//)) {
+                                newUrl = 'https://' + newUrl;
+                              }
+                              setUrl(newUrl);
+                            }}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="URL을 입력하세요"
                           />
