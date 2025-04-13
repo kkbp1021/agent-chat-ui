@@ -101,9 +101,12 @@ export function HumanMessage({
         ) : (
           <div className="flex flex-col items-end">
             {urlData ? (
-              <div className="px-4 py-2 rounded-3xl bg-muted w-fit ml-auto">
+              <div className="px-4 py-2 rounded-3xl bg-muted w-fit ml-auto max-w-[320px] md:max-w-[500px]">
                 <div className="flex flex-col">
-                  <div>URL ({urlData.url})</div>
+                  <div className="break-all">
+                    <span className="mr-1">URL</span>
+                    <span className="text-gray-700 break-all">({urlData.url})</span>
+                  </div>
                   <button
                     onClick={() => setIsUrlContentVisible(!isUrlContentVisible)}
                     className="text-blue-500 hover:text-blue-700 text-sm text-left mt-1"
@@ -111,7 +114,7 @@ export function HumanMessage({
                     {isUrlContentVisible ? '내용 숨기기' : '내용 보기'}
                   </button>
                   {isUrlContentVisible && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm max-w-xl whitespace-pre-wrap text-left">
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm max-w-md whitespace-pre-wrap text-left overflow-y-auto max-h-[60vh]">
                       {urlData.content}
                     </div>
                   )}
