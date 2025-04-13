@@ -51,13 +51,14 @@ export function HumanMessage({
   // URL 내용이 있는지 확인
   let urlData = null;
   try {
-    if (typeof contentString === 'string') {
+    if (typeof contentString === 'string' && contentString.startsWith('{') && contentString.includes('"type":"url_content"')) {
       const parsed = JSON.parse(contentString);
       if (parsed && parsed.type === 'url_content') {
         urlData = parsed;
       }
     }
   } catch (e) {
+    console.error('JSON 파싱 실패:', e);
     // JSON 파싱 실패 시 일반 텍스트로 처리
   }
 

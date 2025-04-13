@@ -99,48 +99,73 @@ function OpenGitHubRepo() {
 
 const fetchContentFromUrl = async (url: string): Promise<string> => {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error('Failed to fetch content');
-    }
-    const text = await response.text();
+    let text = '';
+    let error = null;
     
-    // HTML 파싱을 위한 임시 element 생성
+    // 첫 번째 방법: CORS 프록시 서버 사용
+    try {
+      const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+      const response = await fetch(proxyUrl, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      
+      if (response.ok) {
+        text = await response.text();
+      } else {
+        throw new Error('첫 번째 방법 실패');
+      }
+    } catch (err) {
+      error = err;
+      console.log('첫 번째 방법 실패:', err);
+      
+      // 두 번째 방법: 다른 프록시 서버 시도
+      try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (response.ok) {
+          text = await response.text();
+          error = null; // 에러 초기화
+        } else {
+          throw new Error('두 번째 방법 실패');
+        }
+      } catch (err2) {
+        console.log('두 번째 방법 실패:', err2);
+        // 에러 유지
+      }
+    }
+    
+    // 모든 방법이 실패한 경우
+    if (!text) {
+      return `URL에서 내용을 가져오는 데 실패했습니다. CORS 정책으로 인해 직접 접근이 제한됩니다. 다음 방법을 시도해보세요:
+      
+1. URL 내용을 직접 복사하여 메시지에 붙여넣기
+2. 웹 브라우저에서 직접 해당 URL을 방문하여 내용 확인
+      
+오류: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    
+    // HTML 파싱하여 텍스트만 추출
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
     
     // title 추출
     const title = doc.querySelector('title')?.textContent || '';
     
-    // section 요소들 추출
-    const sections = Array.from(doc.querySelectorAll('section')).map(section => {
-      const heading = section.querySelector('h1, h2, h3, h4, h5, h6')?.textContent || '';
-      const content = section.textContent || '';
-      return { heading, content };
-    });
-
-    // 결과 포맷팅
-    let result = `제목: ${title}\n\n`;
+    // 본문 콘텐츠 추출 (텍스트만)
+    const bodyText = doc.body?.textContent || '';
     
-    if (sections.length > 0) {
-      sections.forEach((section, index) => {
-        if (section.heading) {
-          result += `섹션 ${index + 1} 제목: ${section.heading}\n`;
-        }
-        if (section.content) {
-          result += `섹션 ${index + 1} 내용: ${section.content}\n\n`;
-        }
-      });
-    } else {
-      // section이 없는 경우 전체 content에서 추출
-      const mainContent = doc.body.textContent || '';
-      result += `내용:\n${mainContent}`;
-    }
+    // HTML 태그 제거 및 줄바꿈 정리
+    const content = bodyText
+      .replace(/\s+/g, ' ')
+      .trim();
     
-    return result;
+    return `URL: ${url}\n제목: ${title}\n\n${content}`;
   } catch (error) {
     console.error('Error fetching content:', error);
-    return '';
+    return `URL에서 내용을 가져오는 데 실패했습니다. 오류: ${error instanceof Error ? error.message : String(error)}`;
   }
 };
 
@@ -221,28 +246,83 @@ export function Thread() {
     // URL 내용이 있다면 별도의 메시지로 추가
     let urlContent = '';
     if (url) {
-      urlContent = await fetchContentFromUrl(url);
-      if (urlContent) {
-        const urlMessage: Message = {
-          id: uuidv4(),
-          type: 'human',
-          content: JSON.stringify({
+      try {
+        urlContent = await fetchContentFromUrl(url);
+        if (urlContent) {
+          // 안전하게 JSON 문자열 생성
+          const urlContentObj = {
             type: 'url_content',
             url: url,
             content: urlContent
-          })
-        };
+          };
+          const urlContentJSON = JSON.stringify(urlContentObj);
+          
+          const urlMessage: Message = {
+            id: uuidv4(),
+            type: 'human',
+            content: urlContentJSON
+          };
 
-        // 두 메시지를 모두 포함하여 전송
+          // 두 메시지를 모두 포함하여 전송
+          const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+          stream.submit(
+            { 
+              messages: [
+                ...toolMessages,
+                userMessage,
+                urlMessage
+              ] 
+            },
+            {
+              streamMode: ['values'],
+              optimisticValues: (prev) => ({
+                ...prev,
+                messages: [
+                  ...(prev.messages ?? []),
+                  ...toolMessages,
+                  userMessage,
+                  urlMessage
+                ],
+              }),
+            },
+          );
+        } else {
+          // URL 내용을 가져오지 못한 경우 사용자에게 알림
+          toast.error("URL에서 내용을 가져오는 데 실패했습니다.", {
+            description: "사용자 메시지만 전송됩니다.",
+            duration: 3000
+          });
+          
+          // 사용자 메시지만 전송
+          const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+          stream.submit(
+            { messages: [...toolMessages, userMessage] },
+            {
+              streamMode: ['values'],
+              optimisticValues: (prev) => ({
+                ...prev,
+                messages: [
+                  ...(prev.messages ?? []),
+                  ...toolMessages,
+                  userMessage,
+                ],
+              }),
+            },
+          );
+        }
+      } catch (error) {
+        console.error('URL 내용 가져오기 오류:', error);
+        
+        // 오류 발생 시 사용자에게 알림
+        toast.error("URL 처리 중 오류가 발생했습니다.", {
+          description: String(error),
+          duration: 3000
+        });
+        
+        // 사용자 메시지만 전송
         const toolMessages = ensureToolCallsHaveResponses(stream.messages);
         stream.submit(
-          { 
-            messages: [
-              ...toolMessages,
-              userMessage,
-              urlMessage
-            ] 
-          },
+          { messages: [...toolMessages, userMessage] },
           {
             streamMode: ['values'],
             optimisticValues: (prev) => ({
@@ -251,7 +331,6 @@ export function Thread() {
                 ...(prev.messages ?? []),
                 ...toolMessages,
                 userMessage,
-                urlMessage
               ],
             }),
           },
