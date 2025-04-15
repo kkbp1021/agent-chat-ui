@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 type Status = "Ready" | "Progress" | "Done";
@@ -17,6 +17,19 @@ interface ConfluenceRecord {
 export default function ConfluencePage() {
   const [url, setUrl] = useState("");
   const [records, setRecords] = useState<ConfluenceRecord[]>([]);
+
+  // localStorage에서 기록 불러오기
+  useEffect(() => {
+    const savedRecords = localStorage.getItem('confluenceRecords');
+    if (savedRecords) {
+      setRecords(JSON.parse(savedRecords));
+    }
+  }, []);
+
+  // 기록이 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem('confluenceRecords', JSON.stringify(records));
+  }, [records]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
