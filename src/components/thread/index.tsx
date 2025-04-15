@@ -95,6 +95,28 @@ function OpenGitHubRepo() {
   );
 }
 
+function OpenConfluencePage() {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <a
+            href="/confluence"
+            className="flex items-center justify-center"
+          >
+            <Button variant="outline" size="sm">
+              Confluence 관리 페이지
+            </Button>
+          </a>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          <p>Confluence 관리 페이지로 이동</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function Thread() {
   const [threadId, setThreadId] = useQueryState("threadId");
   const [chatHistoryOpen, setChatHistoryOpen] = useQueryState(
@@ -265,7 +287,7 @@ export function Thread() {
               )}
             </div>
             <div className="absolute top-2 right-4 flex items-center">
-              <OpenGitHubRepo />
+              <OpenConfluencePage />
             </div>
           </div>
         )}
@@ -308,7 +330,7 @@ export function Thread() {
 
             <div className="flex items-center gap-4">
               <div className="flex items-center">
-                <OpenGitHubRepo />
+                <OpenConfluencePage />
               </div>
               <TooltipIconButton
                 size="lg"
