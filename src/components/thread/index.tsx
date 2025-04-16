@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
-import { useState, FormEvent } from "react";
+import { FormEvent } from "react";
 import { Button } from "../ui/button";
 import { Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
@@ -20,6 +20,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
   SquarePen,
+  Settings,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -36,6 +37,8 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import ConfluencePage from "../confluence/page";
+import { Profile } from "../profile";
+import { useRouter } from "next/navigation";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -132,9 +135,11 @@ export function Thread() {
     "confluence",
     parseAsBoolean.withDefault(false),
   );
+  const [showProfile, setShowProfile] = useState(false);
   const [input, setInput] = useState("");
   const [firstTokenReceived, setFirstTokenReceived] = useState(false);
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
+  const router = useRouter();
 
   const stream = useStreamContext();
   const messages = stream.messages;
@@ -295,7 +300,7 @@ export function Thread() {
                 </Button>
               )}
             </div>
-            <div className="absolute top-2 right-4 flex items-center">
+            <div className="absolute top-2 right-4 flex items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
@@ -303,6 +308,13 @@ export function Thread() {
               >
                 Confluence 관리 페이지
               </Button>
+              <TooltipIconButton
+                tooltip="프로필 설정"
+                variant="ghost"
+                onClick={() => setShowProfile(true)}
+              >
+                <Settings className="size-5" />
+              </TooltipIconButton>
             </div>
           </div>
         )}
@@ -487,6 +499,7 @@ export function Thread() {
           />
         </StickToBottom>
       </motion.div>
+      {showProfile && <Profile onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
