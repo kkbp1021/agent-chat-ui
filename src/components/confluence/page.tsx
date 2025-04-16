@@ -55,9 +55,12 @@ export default function ConfluencePage() {
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Confluence 관리 페이지</h1>
-        <Link href="/?apiUrl=http://localhost:2024&assistantId=agent">
-          <Button variant="outline">채팅 페이지로</Button>
-        </Link>
+        <Button 
+          variant="outline"
+          onClick={() => window.location.href = '/?apiUrl=http%3A%2F%2Flocalhost%3A2024&assistantId=agent&apiKey='}
+        >
+          채팅 페이지로
+        </Button>
       </div>
       
       <div className="grid gap-4">

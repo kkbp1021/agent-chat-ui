@@ -35,6 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import ConfluencePage from "../confluence/page";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -101,7 +102,7 @@ function OpenConfluencePage() {
       <Tooltip>
         <TooltipTrigger asChild>
           <a
-            href="/confluence"
+            href="/components/confluence"
             className="flex items-center justify-center"
           >
             <Button variant="outline" size="sm">
@@ -125,6 +126,10 @@ export function Thread() {
   );
   const [hideToolCalls, setHideToolCalls] = useQueryState(
     "hideToolCalls",
+    parseAsBoolean.withDefault(false),
+  );
+  const [showConfluence, setShowConfluence] = useQueryState(
+    "confluence",
     parseAsBoolean.withDefault(false),
   );
   const [input, setInput] = useState("");
@@ -226,6 +231,10 @@ export function Thread() {
     (m) => m.type === "ai" || m.type === "tool",
   );
 
+  if (showConfluence) {
+    return <ConfluencePage />;
+  }
+
   return (
     <div className="flex w-full h-screen overflow-hidden">
       <div className="relative lg:flex hidden">
@@ -287,7 +296,13 @@ export function Thread() {
               )}
             </div>
             <div className="absolute top-2 right-4 flex items-center">
-              <OpenConfluencePage />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowConfluence(true)}
+              >
+                Confluence 관리 페이지
+              </Button>
             </div>
           </div>
         )}
@@ -330,7 +345,13 @@ export function Thread() {
 
             <div className="flex items-center gap-4">
               <div className="flex items-center">
-                <OpenConfluencePage />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowConfluence(true)}
+                >
+                  Confluence 관리 페이지
+                </Button>
               </div>
               <TooltipIconButton
                 size="lg"
